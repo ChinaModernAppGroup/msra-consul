@@ -1,10 +1,6 @@
-# Basic Pool iAppLX
+# iAppLX MSRA for consul
 
-This iApp is an example of accessing iCRD, including an audit processor.  The iApp itself is very simple - it manages the members of a pool.
-
-The audit processor wakes up every 30 seconds (configurable). If the pool has changed on the BigIP then the block is rebound, restoring the Big-IP to the previous configuration.
-
-This iApp also demostrates usage of identified requests with custom HTTPS port when user specifies remote BIG-IP address and device-group name when configuring. In this configuration, Device trust with remote BIG-IP address should be established ahead of time before deploying iApp.
+This iApp is an example of MSRA for consul, including an audit processor.  
 
 ## Build (requires rpmbuild)
 
@@ -12,89 +8,77 @@ This iApp also demostrates usage of identified requests with custom HTTPS port w
 
 Build output is an RPM package
 ## Using IAppLX from BIG-IP UI
-If you are using BIG-IP, install f5-iappslx-basic-pool RPM package using iApps->Package Management LX->Import screen. To create an application, use iApps-> Templates LX -> Application Services -> Applications LX -> Create screen. Default IApp LX UI will be rendered based on the input properties specified in basic pool IAppLX.
-
-Pool name is mandatory when creating or updating iAppLX configuration. Optionally you can add any number of pool members.
+If you are using BIG-IP, install f5-iapplx-msra-consul RPM package using iApps->Package Management LX->Import screen. To create an application, use iApps-> Templates LX -> Application Services -> Applications LX -> Create screen. Default IApp LX UI will be rendered based on the input properties specified in basic pool IAppLX.
 
 ## Using IAppLX from Container to configure BIG-IP [coming soon]
 
-Run the REST container [TBD] with f5-iappslx-basic-pool IAppLX package. Pass in the remote BIG-IP to be trusted when starting REST container as environment variable.
+Using the REST API to work with BIG-IP with f5-iapplx-msra-consul IAppLX package installed. 
 
-Create an Application LX block with hostname, deviceGroupName, poolName, poolType and poolMembers as shown below.
-Save the JSON to block.json and use it in the curl call
+Create an Application LX block with all inputProperties as shown below.
+Save the JSON to block.json and use it in the curl call. Refer to the clouddoc link for more detail: https://clouddocs.f5.com/products/iapp/iapp-lx/tmos-14_0/iapplx_ops_tutorials/creating_iappslx_with_rest.html .
 
 ```json
 {
-  "name": "msda-etcd",
+  "name": "msraconsul",
   "inputProperties": [
     {
-      "id": "etcdEndpoint",
+      "id": "consulEndpoint",
       "type": "STRING",
-      "value": "http://1.1.1.1:2379, http://1.1.1.2:2379",
+      "value": "http://1.1.1.1:8500",
       "metaData": {
-        "description": "Etcd endpoint list",
-        "displayName": "etcd endpoints",
+        "description": "consul endpoint address",
+        "displayName": "consul endpoints",
         "isRequired": true
       }
     },
     {
-      "id": "poolName",
+      "id": "node",
       "type": "STRING",
-      "value": "/Common/samplePool",
+      "value": "bigip249",
       "metaData": {
-        "description": "Pool Name to be created",
-        "displayName": "BIG-IP Pool Name",
+        "description": "Node name to be registered in consul server",
+        "displayName": "Node name in consul server",
         "isRequired": true
       }
     },
     {
-      "id": "poolType",
+      "id": "nodeIpAddr",
       "type": "STRING",
-      "value": "round-robin",
+      "value": "10.1.10.249",
       "metaData": {
-        "description": "load-balancing-mode",
-        "displayName": "Load Balancing Mode",
-        "isRequired": false,
-        "uiType": "dropdown",
-        "uiHints": {
-          "list": {
-            "dataList": [
-              "round-robin",
-              "least-connections-member",
-              "least-connections-node"
-            ]
-          }
-        }
-      }
-    },
-    {
-      "id": "healthMonitor",
-      "type": "STRING",
-      "value": "tcp",
-      "metaData": {
-        "description": "Health Monitor",
-        "displayName": "Health Monitor",
-        "isRequired": false,
-        "uiType": "dropdown",
-        "uiHints": {
-          "list": {
-            "dataList": [
-              "tcp",
-              "udp",
-              "http"
-            ]
-          }
-        }
+        "description": "Node IP address to be registered",
+        "displayName": "Node IP Address",
+        "isRequired": true
       }
     },
     {
       "id": "serviceName",
       "type": "STRING",
-      "value": "http",
+      "value": "msra-service166-onf5",
       "metaData": {
-        "description": "Service name to be exposed",
-        "displayName": "Service Name in etcd",
-        "isRequired": false
+        "description": "Service name to be registered, virtual server name in F5",
+        "displayName": "Service Name",
+        "isRequired": true
+      }
+    },
+    {
+      "id": "serviceIpAddr",
+      "type": "STRING",
+      "value": "10.1.10.166",
+      "metaData": {
+        "description": "Service IP address to be registered",
+        "displayName": "IP address",
+        "isRequired": true
+      }
+    },
+    {
+      "id": "servicePort",
+      "type": "NUMBER",
+      "value": 8080,
+      "metaData": {
+        "description": "Service port to be registered",
+        "displayName": "Service Port",
+        "isRequired": true
       }
     }
   ],
@@ -104,21 +88,21 @@ Save the JSON to block.json and use it in the curl call
       "type": "NUMBER",
       "value": 30,
       "metaData": {
-        "description": "Interval of polling from BIG-IP to etcd",
+        "description": "Interval of polling VIP status, 30s by default.",
         "displayName": "Polling Invertal",
         "isRequired": false
       }
     }
   ],
   "configurationProcessorReference": {
-    "link": "https://localhost/mgmt/shared/iapp/processors/msda-etcdConfig"
+    "link": "https://localhost/mgmt/shared/iapp/processors/msraconsulConfig"
+  },
+  "auditProcessorReference": {
+    "link": "https://localhost/mgmt/shared/iapp/processors/msraconsulEnforceConfiguredAudit"
   },
   "audit": {
-    "intervalSeconds": 0,
-    "policy": "NOTIFY_ONLY"
-  },
-  "sourcePackage": {
-    "packageName": "f5-iapplx-msda-etcd-0.0.1-0001.noarch"
+    "intervalSeconds": 60,
+    "policy": "ENFORCE_CONFIGURED"
   },
   "configProcessorTimeoutSeconds": 30,
   "statsProcessorTimeoutSeconds": 15,
@@ -132,8 +116,8 @@ Save the JSON to block.json and use it in the curl call
 }
 ```
 
-Post the block REST container using curl. Note you need to be running REST container for this step
-and it needs to listening at port 8433
+Post the block REST container using curl. 
 ```bash
-curl -sk -X POST -d @block.json https://localhost:8443/mgmt/shared/iapp/blocks
+curl -sk -X POST -d @block.json https://bigip_mgmt_ip:8443/mgmt/shared/iapp/blocks
 ```
+
