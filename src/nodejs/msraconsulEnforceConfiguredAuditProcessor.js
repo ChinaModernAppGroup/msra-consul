@@ -19,15 +19,15 @@
 'use strict';
 
 
-var q = require("q");
+//var q = require("q");
 
 var blockUtil = require("./blockUtils");
 var logger = require("f5-logger").getInstance();
-var fs = require('fs');
+//var fs = require('fs');
 
 // Setup a signal for onpolling status. It has an initial state "false".
-const msraconsulOnPollingSignal = '/var/tmp/msraconsulOnPolling';
-var msraOnPolling = false;
+//const msraconsulOnPollingSignal = '/var/tmp/msraconsulOnPolling';
+//var msraOnPolling = false;
 
 
 function msraconsulEnforceConfiguredAuditProcessor() {
@@ -69,11 +69,12 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.onStart = function (success)
 // Populate auditTaskState.currentInputProperties with the values on the device.
 // In ENFORCE_CONFIGURED, ignore the found configuration is on the BigIP.
 msraconsulEnforceConfiguredAuditProcessor.prototype.onPost = function (restOperation) {
-    entryCounter++;
-    logger.fine(getLogHeader() + "msra Audit onPost: START");
-    var oThis = this;
-    var auditTaskState = restOperation.getBody();
+  entryCounter++;
+  logger.fine(getLogHeader() + "msra Audit onPost: START");
+  var oThis = this;
+  var auditTaskState = restOperation.getBody();
 
+  setTimeout(function () {
     try {
       if (!auditTaskState) {
         throw new Error("AUDIT: Audit task state must exist ");
@@ -81,57 +82,60 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.onPost = function (restOpera
       /*
         logger.fine(getLogHeader() + "Incoming properties: " +
             this.restHelper.jsonPrinter(auditTaskState.currentInputProperties));
-        
-        
-        var blockInputProperties = blockUtil.getMapFromPropertiesAndValidate(
-            auditTaskState.currentInputProperties,
-            ["consulEndpoint", "node", "nodeIpAddr", "serviceName", "serviceIpAddr", "servicePort"]
-        );
-        
-        */
+      */
+
+      var blockInputProperties = blockUtil.getMapFromPropertiesAndValidate(
+        auditTaskState.currentInputProperties,
+        [
+          "consulEndpoint",
+          "node",
+          "nodeIpAddr",
+          "serviceName",
+          "serviceIpAddr",
+          "servicePort",
+        ]
+      );
+
+      const serviceID = blockInputProperties.node.value + ":" + blockInputProperties.serviceName.value;
       // Check the polling state, trigger ConfigProcessor if needed.
       // Move the signal checking here
-      logger.fine("msra consul Audit: msraOnpolling: ", msraOnPolling);
-      fs.access(msraconsulOnPollingSignal, fs.constants.F_OK, function (err) {
-        if (err) {
+      logger.fine("msra consul Audit: msraconsulOnpolling: ", global.msraconsulOnPolling);
+      logger.fine("msra consul Audit: msraconsul serviceName: ", blockInputProperties.serviceName.value);
+      if (
+        global.msraconsulOnPolling.includes(serviceID)
+      ) {
+        logger.fine(
+          "msra consul audit onPost: ConfigProcessor is on polling state, no need to fire an onPost."
+        );
+      } else {
+        logger.fine(
+          "msra consul audit onPost: ConfigProcessor is NOT on polling state, will trigger ConfigProcessor onPost."
+        );
+        try {
+          var poolNameObject = getObjectByID(
+            "serviceName",
+            auditTaskState.currentInputProperties
+          );
+          poolNameObject.value = null;
+          oThis.finishOperation(restOperation, auditTaskState);
           logger.fine(
-            "msra consul Audit: Checking polling signal hits error: ",
+            "msra consul audit onPost: trigger ConfigProcessor onPost "
+          );
+        } catch (err) {
+          logger.fine(
+            "msra consul audit onPost: Failed to send out restOperation. ",
             err.message
           );
-          logger.fine(
-            "msra consul audit onPost: ConfigProcessor is NOT on polling state, will set msraOnpolling status to FALSE."
-          );
-          msraOnPolling = false;
-          try {
-            var serviceNameObject = getObjectByID(
-              "serviceName",
-              auditTaskState.currentInputProperties
-            );
-            serviceNameObject.value = null;
-            oThis.finishOperation(restOperation, auditTaskState);
-            logger.fine(
-              "msra consul audit onPost: trigger ConfigProcessor onPost "
-            );
-          } catch (err) {
-            logger.fine(
-              "msra consul audit onPost: Failed to send out restOperation. ",
-              err.message
-            );
-          }
-        } else {
-          logger.fine(
-            "msra consul audit onPost: ConfigProcessor is on polling state, will set msraOnPolling status to TRUE."
-          );
-          logger.fine(
-            "msra consul audit onPost: ConfigProcessor is on polling state, no need to fire an onPost."
-          );
-          msraOnPolling = true;
         }
-      });
+      }
     } catch (ex) {
-        logger.fine("msraconsulEnforceConfiguredAuditProcessor.prototype.onPost caught generic exception " + ex);
-        restOperation.fail(ex);
+      logger.fine(
+        "msraconsulEnforceConfiguredAuditProcessor.prototype.onPost caught generic exception " +
+          ex
+      );
+      restOperation.fail(ex);
     }
+  }, 1000);
 };
 
 var getObjectByID = function ( key, array) {
