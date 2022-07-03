@@ -13,6 +13,7 @@
   language governing permissions and limitations under the License.
   
   Updated by Ping Xiong on May/15/2022.
+  Updated by Ping Xiong on Jul/2/2022, using global var for polling signal.
 */
 
 'use strict';
@@ -31,12 +32,13 @@ fetch.Promise = Bluebird;
 
 
 // Setup a polling signal for audit.
-var fs = require('fs');
-const msraconsulOnPollingSignal = '/var/tmp/msraconsulOnPolling';
+//var fs = require('fs');
+//const msraconsulOnPollingSignal = '/var/tmp/msraconsulOnPolling';
+global.msraconsulOnPolling = [];
 
 
 //const pollInterval = 10000; // Interval for polling Registry registry.
-var stopPolling = false;
+//var stopPolling = false;
 
 /**
  * A dynamic config processor for managing LTM pools.
@@ -65,21 +67,6 @@ msraconsulConfigProcessor.prototype.onStart = function (success) {
         eventChannel: this.eventChannel,
         restHelper: this.restHelper
     });
-
-    // Clear the polling signal for audit.
-    try {
-        fs.access(msraconsulOnPollingSignal, fs.constants.F_OK, function (err) {
-            if (err) {
-                logger.fine("msraconsul audit OnStart, the polling signal is off. ", err.message);
-            } else {
-                logger.fine("msra consul audit onStart: ConfigProcessor started, clear the signal.");
-                fs.unlinkSync(msraconsulOnPollingSignal);
-            }
-        });
-    } catch(err) {
-        logger.fine("msraconsul: OnStart, hits error while check pooling signal. ", err.message);
-    }
-
 
     success();
 };
@@ -145,7 +132,6 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
     const inputServiceIpAddr = inputProperties.serviceIpAddr.value;
     const inputServicePort = inputProperties.servicePort.value;
     const serviceID = inputNodeName + ":" + inputServiceName;
-
     var pollInterval = dataProperties.pollInterval.value * 1000;
 
     // Set the polling interval
@@ -160,17 +146,20 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
     }
     
     // Setup the polling signal for audit
-    try {
-        logger.fine("msraconsul: onPost, will set the polling signal. ");
-        fs.writeFile(msraconsulOnPollingSignal, '');
-    } catch (error) {
-        logger.fine("msraconsul: onPost, hit error while set polling signal: ", error.message);
+    if (global.msraconsulOnPolling.includes(serviceID)) {
+        return logger.fine("msra: onPost, already has an instance polling the same serviceID, please check it out: " + serviceID);
+    } else { 
+        global.msraconsulOnPolling.push(serviceID);
+        logger.fine("msra onPost: set msraconsulOnpolling signal: ", global.msraconsulOnPolling);
     }
 
 
-    logger.fine("MSRA: onPost, Input properties accepted, change to BOUND status, start to poll Registry.");
+    logger.fine(
+      "MSRA: onPost, Input properties accepted, change to BOUND status, start to poll Registry for: " +
+        inputServiceName
+    );
 
-    stopPolling = false;
+    //stopPolling = false;
 
     configTaskUtil.sendPatchToBoundState(configTaskState, 
             oThis.getUri().href, restOperation.getBasicAuthorization());
@@ -192,7 +181,7 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
     };
 
 
-    // connect to consul registry to retrieve end points.
+    // connect to consul registry to retrieve end-points.
     const registerUrl = inputEndPoint + "/v1/catalog/register";
     const deregisterUrl = inputEndPoint + "/v1/catalog/deregister";
     const listServiceUrl = inputEndPoint + "/v1/catalog/service/" + inputServiceName;
@@ -236,11 +225,8 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
                         logger.fine(
                         "MSRA: onPost, Service not found, will check the status of vs, then decide register into consul server or not."
                         );
-
                         // check the status of the vs in F5
-
                         // Use tmsh to check vs status of BIG-IP application instead of restful API
-
                         // Start with check the exisitence of the given pool
                         mytmsh
                         .executeCommand(
@@ -308,6 +294,7 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
                             return;
                         });
                     } else {
+                        // Assume only 1 instance for each service for now, can be extended to multiple instances later.
                         // do health check for BIG-IP application, deregister if app down
                         // Use tmsh to check vs status of BIG-IP application instead of restful API
                         // Start with check the exisitence of the given pool
@@ -372,10 +359,12 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
         }, pollInterval);
 
         // Stop polling while undepllyment, and deregister the app from consul server
-        if (stopPolling) {
+        if (global.msraconsulOnPolling.includes(serviceID)) {
+            logger.fine("msra: onPost, keep polling registry for: " + serviceID);            
+        } else {
             process.nextTick(() => {
                 clearTimeout(pollRegistry);
-                logger.fine("MSRA: onPost/stopping, Stop polling registry ...");
+                logger.fine("MSRA: onPost/stopping, Stop polling registry for: " + serviceID);
             });
             // deregister the service from consul server
             setTimeout (function () {
@@ -412,6 +401,8 @@ msraconsulConfigProcessor.prototype.onDelete = function (restOperation) {
         return;
     }
 
+    const serviceID = inputProperties.node.value + ":" + inputProperties.serviceName.value;
+
     this.completeRequest(restOperation, this.wellKnownPorts.STATUS_ACCEPTED);
 
     // Generic URI components, minus the 'path'
@@ -429,11 +420,10 @@ msraconsulConfigProcessor.prototype.onDelete = function (restOperation) {
                 oThis.getUri().href, restOperation.getBasicAuthorization());
     
     // Stop polling registry while undeploy ??
-    process.nextTick(() => {
-        stopPolling = true;
-        logger.fine("MSRA: onDelete/stopping, Stop polling registry ...");
-    });
-    logger.fine("MSRA: onDelete, Stop polling Registry while ondelete action.");
+    // Delete the polling signal
+    let signalIndex = global.msraconsulOnPolling.indexOf(serviceID);
+    global.msraconsulOnPolling.splice(signalIndex,1);
+    logger.fine("MSRA: onDelete, Stop polling Registry while ondelete action." + serviceID);
 };
 
 module.exports = msraconsulConfigProcessor;
