@@ -12,7 +12,8 @@
   either express or implied. See the License for the specific
   language governing permissions and limitations under the License.
 
-  Updated by Ping Xiong on May/13/2022
+  Updated by Ping Xiong on May/13/2022.
+  Updated by Ping Xiong on Jul/2/2022, using global var for polling signal.
 
 */
 
@@ -97,6 +98,7 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.onPost = function (restOpera
       );
 
       const serviceID = blockInputProperties.node.value + ":" + blockInputProperties.serviceName.value;
+      
       // Check the polling state, trigger ConfigProcessor if needed.
       // Move the signal checking here
       logger.fine("msra consul Audit: msraconsulOnpolling: ", global.msraconsulOnPolling);

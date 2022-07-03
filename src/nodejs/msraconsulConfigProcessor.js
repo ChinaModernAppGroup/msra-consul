@@ -13,6 +13,7 @@
   language governing permissions and limitations under the License.
   
   Updated by Ping Xiong on May/15/2022.
+  Updated by Ping Xiong on Jul/2/2022, using global var for polling signal.
 */
 
 'use strict';
