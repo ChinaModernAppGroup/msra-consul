@@ -245,7 +245,7 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
                                     
                                 // register an instance to consul
                                 fetch(registerUrl, {
-                                    method: "POST",
+                                    method: "PUT",
                                     body: JSON.stringify(serviceBody),
                                     headers: { "Content-Type": "application/json" },
                                 })
