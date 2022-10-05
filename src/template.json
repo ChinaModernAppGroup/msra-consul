@@ -32,12 +32,22 @@
       }
     },
     {
-      "id": "serviceName",
+      "id": "virtualServer",
       "type": "STRING",
       "value": "msra-service166-onf5",
       "metaData": {
-        "description": "Service name to be registered, virtual server name in F5",
-        "displayName": "Service Name",
+        "description": "Virtual server name in BIG-IP",
+        "displayName": "Virtual Server in BIG-IP",
+        "isRequired": true
+      }
+    },
+    {
+      "id": "serviceName",
+      "type": "STRING",
+      "value": "msra-demo-service",
+      "metaData": {
+        "description": "Service name to be registered",
+        "displayName": "Service Name in Consul",
         "isRequired": true
       }
     },
