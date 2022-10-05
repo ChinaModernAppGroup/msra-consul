@@ -14,7 +14,12 @@
 
   Updated by Ping Xiong on May/13/2022.
   Updated by Ping Xiong on Jul/2/2022, using global var for polling signal.
-
+  Updated by Ping Xiong on Oct/05/2022, modify the polling signal into a json object to keep more information.
+  let blockInstance = {
+    name: "instanceName", // a block instance of the iapplx config
+    state: "polling", // can be "polling" for normal running state; "update" to modify the iapplx config
+    serviceId: "inputNodeName + ":" + inputVirtualServer + ":" + inputServiceName", what's the ID for consul?
+  }
 */
 
 'use strict';
@@ -49,7 +54,7 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.WORKER_URI_PATH = "shared/ia
 
 msraconsulEnforceConfiguredAuditProcessor.prototype.onStart = function (success) {
     logger.fine("msraconsulEnforceConfiguredAuditProcessor.prototype.onStart");
-    //logger.fine("msra consul audit onStart: ConfigProcessor polling state: ");
+    //logger.fine("MSRA consul Audit onStart: ConfigProcessor polling state: ");
     this.apiStatus = this.API_STATUS.INTERNAL_ONLY;
     this.isPublic = true;
  
@@ -91,28 +96,40 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.onPost = function (restOpera
           "consulEndpoint",
           "node",
           "nodeIpAddr",
+          "virtualServer",
           "serviceName",
           "serviceIpAddr",
-          "servicePort",
+          "servicePort"
         ]
       );
 
-      const serviceID = blockInputProperties.node.value + ":" + blockInputProperties.serviceName.value;
+      //const serviceID = blockInputProperties.node.value + ":" + blockInputProperties.serviceName.value;
+      const serviceId =
+        blockInputProperties.node.value +
+        ":" +
+        blockInputProperties.virtualServer.value +
+        ":" +
+        blockInputProperties.serviceName.value;
       
       // Check the polling state, trigger ConfigProcessor if needed.
       // Move the signal checking here
-      logger.fine("msra consul Audit: msraconsulOnpolling: ", global.msraconsulOnPolling);
-      logger.fine("msra consul Audit: msraconsul serviceName: ", blockInputProperties.serviceName.value);
+      logger.fine("MSRA consul Audit msraconsulOnpolling: ", global.msraconsulOnPolling);
+      logger.fine("MSRA consul Audit msraconsul serviceName: ", blockInputProperties.serviceName.value);
+      logger.fine("MSRA consul Audit msraconsul serviceId: ", serviceId);
       if (
-        global.msraconsulOnPolling.includes(serviceID)
+          global.msraconsulOnPolling.some(
+            (instance) => instance.serviceId === serviceId
+          )
       ) {
-        logger.fine(
-          "msra consul audit onPost: ConfigProcessor is on polling state, no need to fire an onPost."
-        );
+          logger.fine(
+            "MSRA consul Audit onPost: ConfigProcessor is on polling state, no need to fire an onPost.",
+            serviceId
+          );
       } else {
-        logger.fine(
-          "msra consul audit onPost: ConfigProcessor is NOT on polling state, will trigger ConfigProcessor onPost."
-        );
+          logger.fine(
+            "MSRA consul Audit onPost: ConfigProcessor is NOT on polling state, will trigger ConfigProcessor onPost.",
+            serviceId
+          );
         try {
           var poolNameObject = getObjectByID(
             "serviceName",
@@ -121,23 +138,22 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.onPost = function (restOpera
           poolNameObject.value = null;
           oThis.finishOperation(restOperation, auditTaskState);
           logger.fine(
-            "msra consul audit onPost: trigger ConfigProcessor onPost "
+            "MSRA consul Audit onPost: trigger ConfigProcessor onPost ",
+            serviceId
           );
         } catch (err) {
           logger.fine(
-            "msra consul audit onPost: Failed to send out restOperation. ",
+            "MSRA consul Audit onPost: Failed to send out restOperation. ",
             err.message
           );
         }
       }
     } catch (ex) {
       logger.fine(
-        "msraconsulEnforceConfiguredAuditProcessor.prototype.onPost caught generic exception " +
-          ex
-      );
+        "msraconsulEnforceConfiguredAuditProcessor.prototype.onPost caught generic exception ", ex);
       restOperation.fail(ex);
     }
-  }, 1000);
+  }, 2000);
 };
 
 var getObjectByID = function ( key, array) {
