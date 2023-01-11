@@ -1,7 +1,7 @@
 Summary: F5 Basic iApp
 Name: f5-iapplx-msra-consul
-Version: 0.0.2
-Release: 0002
+Version: 0.0.3
+Release: 0001
 BuildArch: noarch
 Group: Development/Libraries
 License: Commercial

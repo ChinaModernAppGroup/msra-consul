@@ -110,7 +110,7 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
             "virtualServer",
             "serviceName",
             "serviceIpAddr",
-            "servicePort",
+            "servicePort"
         ]
         );
         dataProperties = blockUtil.getMapFromPropertiesAndValidate(
@@ -130,7 +130,7 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
     var uri = this.restHelper.buildUri({
         protocol: this.wellKnownPorts.DEFAULT_HTTP_SCHEME,
         port: this.wellKnownPorts.DEFAULT_JAVA_SERVER_PORT,
-        hostname: "localhost",
+        hostname: "localhost"
     });
 
     //Accept input proterties, set the status to BOUND.
@@ -223,8 +223,8 @@ msraconsulConfigProcessor.prototype.onPost = function (restOperation) {
     } else {
         global.msraconsulOnPolling.push(blockInstance);
         logger.fine(
-            "MSRA onPost: set msraconsulOnpolling signal: ",
-            global.msraconsulOnPolling
+          "MSRA onPost: " + instanceName + " set msraconsulOnpolling signal: ",
+          global.msraconsulOnPolling
         );
     }
 
@@ -568,7 +568,11 @@ msraconsulConfigProcessor.prototype.onDelete = function (restOperation) {
         blockState;
     var oThis = this;
 
-    logger.fine("MSRA: onDelete, msraconsulConfigProcessor.prototype.onDelete");
+    logger.fine(
+        "MSRA: onDelete, " +
+        instanceName +
+        " msraconsulConfigProcessor.prototype.onDelete"
+    );
 
     var instanceName;
     var inputProperties;
