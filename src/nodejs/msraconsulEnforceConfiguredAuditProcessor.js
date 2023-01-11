@@ -80,7 +80,7 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.onPost = function (restOpera
   var oThis = this;
   var auditTaskState = restOperation.getBody();
 
-  setTimeout(function () {
+  //setTimeout(function () {
     try {
       if (!auditTaskState) {
         throw new Error("AUDIT: Audit task state must exist ");
@@ -113,21 +113,33 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.onPost = function (restOpera
       
       // Check the polling state, trigger ConfigProcessor if needed.
       // Move the signal checking here
-      logger.fine("MSRA consul Audit msraconsulOnpolling: ", global.msraconsulOnPolling);
-      logger.fine("MSRA consul Audit msraconsul serviceName: ", blockInputProperties.serviceName.value);
-      logger.fine("MSRA consul Audit msraconsul serviceId: ", serviceId);
+      logger.fine(
+        "getLogHeader() + MSRA consul Audit msraconsulOnpolling: ",
+        global.msraconsulOnPolling
+      );
+      logger.fine(
+        getLogHeader() + "MSRA consul Audit msraconsul serviceName: ",
+        blockInputProperties.serviceName.value
+      );
+      logger.fine(
+        getLogHeader() + "MSRA consul Audit msraconsul serviceId: ",
+        serviceId
+      );
       if (
           global.msraconsulOnPolling.some(
             (instance) => instance.serviceId === serviceId
           )
       ) {
           logger.fine(
-            "MSRA consul Audit onPost: ConfigProcessor is on polling state, no need to fire an onPost.",
+            getLogHeader() +
+              "MSRA consul Audit onPost: ConfigProcessor is on polling state, no need to fire an onPost.",
             serviceId
           );
+          oThis.finishOperation(restOperation, auditTaskState);
       } else {
           logger.fine(
-            "MSRA consul Audit onPost: ConfigProcessor is NOT on polling state, will trigger ConfigProcessor onPost.",
+            getLogHeader() +
+              "MSRA consul Audit onPost: ConfigProcessor is NOT on polling state, will trigger ConfigProcessor onPost.",
             serviceId
           );
         try {
@@ -138,22 +150,27 @@ msraconsulEnforceConfiguredAuditProcessor.prototype.onPost = function (restOpera
           poolNameObject.value = null;
           oThis.finishOperation(restOperation, auditTaskState);
           logger.fine(
-            "MSRA consul Audit onPost: trigger ConfigProcessor onPost ",
+            getLogHeader() +
+              "MSRA consul Audit onPost: trigger ConfigProcessor onPost ",
             serviceId
           );
         } catch (err) {
           logger.fine(
-            "MSRA consul Audit onPost: Failed to send out restOperation. ",
+            getLogHeader() +
+              "MSRA consul Audit onPost: Failed to send out restOperation. ",
             err.message
           );
         }
       }
     } catch (ex) {
       logger.fine(
-        "msraconsulEnforceConfiguredAuditProcessor.prototype.onPost caught generic exception ", ex);
+        getLogHeader() +
+          "msraconsulEnforceConfiguredAuditProcessor.prototype.onPost caught generic exception ",
+        ex
+      );
       restOperation.fail(ex);
     }
-  }, 2000);
+  //}, 2000);
 };
 
 var getObjectByID = function ( key, array) {
